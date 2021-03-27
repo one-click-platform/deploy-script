@@ -3,21 +3,21 @@
 echo
 while true; do
  aws ec2 describe-vpcs --vpc-ids $vpc_id --query   'Vpcs[].{VPCID:VpcId,association:CidrBlockAssociationSet[].CidrBlockState.State| [0],CIDR:CidrBlock,Name:Tags[?Key==`Name`].Value| [0]}'
- vpc_name= $1
+ vpc_name=$1
  vpc_name=${vpc_name:-$vpc_name}
  aws ec2 describe-vpcs --filters Name=tag:Name,Values=$vpc_name  --query   'Vpcs[].{VPCID:VpcId,association:CidrBlockAssociationSet[].CidrBlockState.State| [0],CIDR:CidrBlock,Name:Tags[?Key==`Name`].Value| [0]}'
  vpc_id=$(aws ec2 describe-vpcs --filters Name=tag:Name,Values=$vpc_name  --query   'Vpcs[].VpcId' --output text)
  if [ -n "$vpc_id" ];
     then  
    echo -e selected VPC name : $vpc_name
-   sub_name= $2
+   sub_name=$2
    sub_name=${sub_name:-CLI-SUB}
    echo selected Subnet name : $sub_name
    while true; do
    echo ============ SUBNET CIDR ========================== 
    echo Subnet CIDR must be contained in its VPC CIDR block "$(aws ec2 describe-vpcs --vpc-ids $vpc_id  --query   'Vpcs[].CidrBlock' --output text)"
    echo ===================================================
-   sub_cidr="192.168.10.0/24"
+   sub_cidr="192.168.11.0/24"
             sub_cidr=${sub_cidr:-"192.168.10.0/24"};
             if [ "$sub_cidr" = "" ] 
                 then echo -e "Entered CIDR is not valid. Please retry"
@@ -48,5 +48,5 @@ sub_id=$(aws ec2 create-subnet --vpc-id $vpc_id  --cidr-block $sub_cidr --tag-sp
 echo
 echo "==== Created SUBNET details ===="
 aws ec2 describe-subnets  --subnet-id $sub_id --query 'Subnets[].{VPC_id:VpcId,SUB_id:SubnetId,AZ:AvailabilityZone,CIDR:CidrBlock,AutoIP:MapPublicIpOnLaunch,IP_COUNT:AvailableIpAddressCount,Name:Tags[?Key==`Name`].Value| [0]}'
-aws ec2 modify-subnet-attribute  --subnet-id $sub_id --map-public-ip-on-launch
 echo "--> Auto-assign Public IP enabled for $sub_name"
+aws ec2 modify-subnet-attribute  --subnet-id $sub_id --map-public-ip-on-launch

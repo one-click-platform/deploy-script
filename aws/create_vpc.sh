@@ -1,6 +1,6 @@
 #!/bin/bash
 
-vpc_name= "$1"
+vpc_name=$1
 vpc_name=${vpc_name:-CLI-VPC}
 echo -e selected VPC name : $vpc_name
 if [ -z "$vpc_name" ];
@@ -33,6 +33,6 @@ aws ec2 describe-vpcs --vpc-ids $vpc_id --query   'Vpcs[].{VPCID:VpcId,associati
 echo -e Note : the last octet is always zeroed even if you specify a non zero value
 echo -e "==== Created Security Group ===="
 sg_id=$(aws ec2 create-security-group --group-name sg_$vpc_name --description "SSH ,HTTP, and HTTPS" --vpc-id $vpc_id --query GroupId --output text) 
-aws ec2 authorize-security-group-ingress --group-id $sg_id --ip-permissions IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges='[{CidrIp=0.0.0.0/0,Description="Inbound SSH access"}]' IpProtocol=tcp,FromPort=80,ToPort=80,IpRanges='[{CidrIp=0.0.0.0/0,Description="Inbound HTTP access "}]' IpProtocol=tcp,FromPort=443,ToPort=443,IpRanges='[{CidrIp=0.0.0.0/0,Description="Inbound HTTPS access"}]'
+aws ec2 authorize-security-group-ingress --group-id $sg_id --ip-permissions IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges='[{CidrIp=0.0.0.0/0,Description="Inbound SSH access"}]' IpProtocol=tcp,FromPort=80,ToPort=80,IpRanges='[{CidrIp=0.0.0.0/0,Description="Inbound HTTP access "}]' IpProtocol=tcp,FromPort=443,ToPort=443,IpRanges='[{CidrIp=0.0.0.0/0,Description="Inbound HTTPS access"}]' IpProtocol=tcp,FromPort=8545,ToPort=8545,IpRanges='[{CidrIp=0.0.0.0/0,Description="Inbound HTTPS access"}]' IpProtocol=tcp,FromPort=30303,ToPort=30303,IpRanges='[{CidrIp=0.0.0.0/0,Description="Inbound HTTPS access"}]'
 echo -e "==== Created Security Group details ===="
 aws ec2 describe-security-groups --group-id $sg_id  --query  'SecurityGroups[].{SG_id:GroupId,Name:GroupName,Vpc_id:VpcId,"Rules": IpPermissions[].{SourceCIDR:IpRanges[].CidrIp|[0],Description:IpRanges[].Description|[0],fromport:FromPort,ToPort:ToPort,Protocol:IpProtocol}}'

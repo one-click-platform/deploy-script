@@ -1,7 +1,9 @@
 #!/bin/bash
-
+export AWS_SDK_LOAD_CONFIG=1
+export AWS_PROFILE=hackaton
+export AWS_REGION=us-east-1
 function deploy_aws {
-    
+    sh ./aws/create_instance.sh "1" "Etheriu36" "Etherium_vpc" "Etherium_sub"
 }
 
 function help {
@@ -12,11 +14,6 @@ function help {
     echo "  deploy         Apply beating from env.yaml to cluster."
 
     echo
-
-}
-
-function test {
-    
 
 }
 

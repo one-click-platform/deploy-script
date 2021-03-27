@@ -1,13 +1,14 @@
 #!/bin/bash
 
-echo -e "Note: t2.Micro"
+echo  "Note: t2.Micro"
 inst_type=$(aws ec2 describe-instance-types --filters "Name=free-tier-eligible,Values=true" "Name=current-generation,Values=true" --query 'InstanceTypes[].InstanceType' --output text)
 
 
-public_key= $1
-public_key=${public_key:-~/id_rsa_aws.pub}
-key=$(echo ${public_key} | awk -F'/' '{print $NF}')
-instance_name= $2
+aws_key_name="$2"
+ssh_key="./keys/$2.pem"
+
+
+instance_name=$2
 instance_name=${instance_name:-"Demo"}
 aws ec2 describe-instance-types --filters "Name=free-tier-eligible,Values=true" "Name=current-generation,Values=true" --query 'InstanceTypes[].{Instance:InstanceType,Memory:MemoryInfo.SizeInMiB,Ghz:ProcessorInfo.SustainedClockSpeedInGhz, VirType:SupportedVirtualizationTypes|[0]}'
 
@@ -24,7 +25,7 @@ if [ -n "$vpc_id" ];
     then  
      echo selected VPC name $vpc_name
      while true; do
-     igw_id=$(aws ec2 describe-internet-gateways --filters Name=attachment.vpc-id,Values=$vpc_id --query 'InternetGateways[].InternetGatewayId' --output text) 
+     igw_id=$(aws ec2 describe-internet-gateways --filters Name=attachment.vpc-id,Values=$vpc_id --query 'InternetGateways[].InternetGatewayId' --output text)
      if  [ -n "$igw_id" ];
      then echo 
      echo "1. Internet gateway exists => checking the subnet availability$"
@@ -32,12 +33,12 @@ if [ -n "$vpc_id" ];
      break
      else echo "No Internet Gateway is associated to $vpc_name VPC.";
      echo "creating and attaching the missing Internet gateway"
-     igw_id=$(aws ec2 create-internet-gateway  --tag-specifications "ResourceType=internet-gateway,Tags=[{Key=Name,Value=igw_$vpc_name}]" --query 'InternetGateway.{InternetGatewayId:InternetGatewayId}' --output text  ) #--region $AWS_REGION
+     igw_id=$(aws ec2 create-internet-gateway  --tag-specifications "ResourceType=internet-gateway,Tags=[{Key=Name,Value=igw_$vpc_name}]" --query 'InternetGateway.{InternetGatewayId:InternetGatewayId}' --output text  ) 
      aws ec2 attach-internet-gateway   --vpc-id $vpc_id  --internet-gateway-id $igw_id  --region $AWS_REGION
      fi
      done 
      break
-else ./aws/create_vpc.sh $4; 
+else sh ./aws/create_vpc.sh $3; 
  fi
  done
 
@@ -49,7 +50,7 @@ sub_id=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$vpc_id" --query
 if [ -n "$sub_id" ];
     then  
      aws ec2 describe-subnets --filters "Name=vpc-id,Values=$vpc_id" --query 'Subnets[].{VPC_id:VpcId,SUB_id:SubnetId,AZ:AvailabilityZone,CIDR:CidrBlock,AutoIP:MapPublicIpOnLaunch,IP_COUNT:AvailableIpAddressCount,Name:Tags[?Key==`Name`].Value| [0]}' 
-     sub_name= $5
+     sub_name=$4
      sub_name=${sub_name:-$sub_name}
      sub_id=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$vpc_id" "Name=tag:Name,Values=$sub_name"  --query   'Subnets[].SubnetId' --output text)
      echo selected subnet name : $sub_name
@@ -58,10 +59,9 @@ if [ -n "$sub_id" ];
      echo " Internet gateway and subnet exist => checking the Route table"
      echo ...
      break
-     else  ./aws/create_subnet.sh $3 $6;
+     else  sh ./aws/create_subnet.sh $3 $4;
      fi 
-else echo ./aws/create_subnet.sh $3 $6; 
-exit 1
+else sh ./aws/create_subnet.sh $3 $4; 
  fi 
 done 
 
@@ -110,6 +110,8 @@ done
          sg_22=$(aws ec2 describe-security-groups --filter "Name=ip-permission.from-port,Values=22" "Name=vpc-id,Values=$vpc_id" "Name=ip-permission.cidr,Values='0.0.0.0/0'" --query SecurityGroups[].GroupId --output text)
          sg_443=$(aws ec2 describe-security-groups --filter "Name=ip-permission.from-port,Values=80" "Name=vpc-id,Values=$vpc_id" "Name=ip-permission.cidr,Values='0.0.0.0/0'" --query SecurityGroups[].GroupId --output text)
          sg_80=$(aws ec2 describe-security-groups --filter "Name=ip-permission.from-port,Values=443" "Name=vpc-id,Values=$vpc_id" "Name=ip-permission.cidr,Values='0.0.0.0/0'" --query SecurityGroups[].GroupId --output text)
+         sg_8545=$(aws ec2 describe-security-groups --filter "Name=ip-permission.from-port,Values=8545" "Name=vpc-id,Values=$vpc_id" "Name=ip-permission.cidr,Values='0.0.0.0/0'" --query SecurityGroups[].GroupId --output text)
+         sg_30303=$(aws ec2 describe-security-groups --filter "Name=ip-permission.from-port,Values=30303" "Name=vpc-id,Values=$vpc_id" "Name=ip-permission.cidr,Values='0.0.0.0/0'" --query SecurityGroups[].GroupId --output text)
            if [ -z "$sg_22" ];
            then echo "opening Port 22"
            aws ec2 authorize-security-group-ingress --group-id $sg_id --ip-permissions IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges='[{CidrIp=0.0.0.0/0,Description="Inbound SSH access"}]'
@@ -121,6 +123,14 @@ done
            if [ -z "$sg_443" ];
            then echo "opening Port 443"
            aws ec2 authorize-security-group-ingress --group-id $sg_id --ip-permissions IpProtocol=tcp,FromPort=433,ToPort=433,IpRanges='[{CidrIp=0.0.0.0/0,Description="Inbound HTTPS access "}]'
+           fi
+           if [ -z "$sg_8545" ];
+           then echo "opening Port 8545"
+           aws ec2 authorize-security-group-ingress --group-id $sg_id --ip-permissions IpProtocol=tcp,FromPort=8545,ToPort=8545,IpRanges='[{CidrIp=0.0.0.0/0,Description="Inbound HTTPS access "}]'
+           fi
+           if [ -z "$sg_30303" ];
+           then echo "opening Port 30303"
+           aws ec2 authorize-security-group-ingress --group-id $sg_id --ip-permissions IpProtocol=tcp,FromPort=30303,ToPort=30303,IpRanges='[{CidrIp=0.0.0.0/0,Description="Inbound HTTPS access "}]'
            fi
       else  echo  "3. dedicated security Group ingress rules exists  PORT (22,80)."
       fi
@@ -147,18 +157,14 @@ user="ubuntu"
        echo selected Subnet name : $sub_name
        echo selected Instance name : $instance_name
        echo selected instance Type: $inst_type
-       echo selected public key: $public_key
+       echo selected public key: $2.pem
        echo selected Security Group: $sg_id
        echo selected OS : $OS
   echo ...
- echo Importing/checking the key pair to/from AWS   
-  key_name=$(aws ec2 describe-key-pairs --filters "Name=key-name,Values=${key}_KeyPair" --query 'KeyPairs[].KeyName' --output text)
-  if [ -z "$key_name" ];
-  then
-  aws ec2 import-key-pair --key-name "${key}_KeyPair" --public-key-material fileb://$public_key
-  else echo key-pair exists ..
-    fi      
-instance_id=$(aws ec2 run-instances --image-id $img_id --instance-type $inst_type --count 1 --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$instance_name}]" --subnet-id $sub_id --key-name ${key}_KeyPair --security-group-ids $sg_id $userdata --query 'Instances[].InstanceId' --output text)  
+ echo Importing/checking the key pair to/from AWS 
+ aws ec2 create-key-pair --key-name $2 --query 'KeyMaterial' --output text 2>&1 | tee $ssh_key 
+ chmod 400 $ssh_key     
+instance_id=$(aws ec2 run-instances --image-id $img_id --instance-type $inst_type --count 1 --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$instance_name}]" --subnet-id $sub_id --key-name $2 --security-group-ids $sg_id $userdata --query 'Instances[].InstanceId' --output text)  
 echo
 echo ====================================
 echo Check the status of the new Instance
@@ -167,5 +173,12 @@ echo The compute instance is being created. This will take few minutes ...
 aws ec2 wait instance-running --instance-ids $instance_id
 aws ec2 describe-instances --instance-ids $instance_id --query 'Reservations[].Instances[].{ID: InstanceId,VPCID:VpcId,Subnet:SubnetId,image:ImageId,status:State.Name,Hostname: PublicDnsName,AZ:Placement.AvailabilityZone,PrivIP:PrivateIpAddress,Public_IP:PublicIpAddress,Type: InstanceType,Name:Tags[?Key==`Name`].Value| [0],Platform: Platform }' --output table  
 pub_ip=$(aws ec2 describe-instances --instance-ids $instance_id --query 'Reservations[].Instances[].PublicIpAddress' --output text)
-echo "ssh connection to the instance ==> sudo ssh -i ~/id_rsa_aws ${user}@${pub_ip}" 
+echo "ssh connection to the instance ==> ssh -i $2.pem ${user}@${pub_ip}" 
 echo "Your website is ready at this IP :) : http://${pub_ip} "
+cd keys/
+mkdir $2
+sleep 300s
+scp -o "StrictHostKeyChecking no" -r -i $2.pem ${user}@${pub_ip}:/validator_v/keystore/ ./$2/keystore
+scp -o "StrictHostKeyChecking no" -r -i $2.pem ${user}@${pub_ip}:/addres.txt ./$2/addres.txt
+cd $2
+echo "ssh -i $2.pem ${user}@${pub_ip}" > dostup.txt
