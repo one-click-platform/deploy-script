@@ -94,4 +94,3 @@ docker run -v /validator_v:/root/.ethereum -v /password.txt:/root/.ethereum/pass
 
 chown -R ubuntu /validator_v/keystore/;
 chown -R ubuntu /addres.txt;
-#chown -R ubuntu /number.txt;

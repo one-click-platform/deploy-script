@@ -1,4 +1,9 @@
 #!/bin/bash
+#export AWS_SDK_LOAD_CONFIG=1
+#export AWS_PROFILE=hackaton
+export AWS_REGION=us-east-1
+#export AWS_ACCESS_KEY_ID=your_access_key_id
+#export AWS_SECRET_ACCESS_KEY=your_secret_access_key
 
 echo  "Note: t2.Micro"
 inst_type=$(aws ec2 describe-instance-types --filters "Name=free-tier-eligible,Values=true" "Name=current-generation,Values=true" --query 'InstanceTypes[].InstanceType' --output text)
