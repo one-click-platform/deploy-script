@@ -139,3 +139,33 @@ img_id=$(aws ec2 describe-images  --owners 099720109477 --filters 'Name=name,Val
 userdata="--user-data file://cloud-init/ubto_userdata.txt"
 OS="Ubuntu"
 user="ubuntu"
+######################
+# INSTANCE
+######################
+ echo =====Instance Deployment Detail========
+       echo
+       echo selected Subnet name : $sub_name
+       echo selected Instance name : $instance_name
+       echo selected instance Type: $inst_type
+       echo selected public key: $public_key
+       echo selected Security Group: $sg_id
+       echo selected OS : $OS
+  echo ...
+ echo Importing/checking the key pair to/from AWS   
+  key_name=$(aws ec2 describe-key-pairs --filters "Name=key-name,Values=${key}_KeyPair" --query 'KeyPairs[].KeyName' --output text)
+  if [ -z "$key_name" ];
+  then
+  aws ec2 import-key-pair --key-name "${key}_KeyPair" --public-key-material fileb://$public_key
+  else echo key-pair exists ..
+    fi      
+instance_id=$(aws ec2 run-instances --image-id $img_id --instance-type $inst_type --count 1 --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$instance_name}]" --subnet-id $sub_id --key-name ${key}_KeyPair --security-group-ids $sg_id $userdata --query 'Instances[].InstanceId' --output text)  
+echo
+echo ====================================
+echo Check the status of the new Instance
+echo ====================================
+echo The compute instance is being created. This will take few minutes ... 
+aws ec2 wait instance-running --instance-ids $instance_id
+aws ec2 describe-instances --instance-ids $instance_id --query 'Reservations[].Instances[].{ID: InstanceId,VPCID:VpcId,Subnet:SubnetId,image:ImageId,status:State.Name,Hostname: PublicDnsName,AZ:Placement.AvailabilityZone,PrivIP:PrivateIpAddress,Public_IP:PublicIpAddress,Type: InstanceType,Name:Tags[?Key==`Name`].Value| [0],Platform: Platform }' --output table  
+pub_ip=$(aws ec2 describe-instances --instance-ids $instance_id --query 'Reservations[].Instances[].PublicIpAddress' --output text)
+echo "ssh connection to the instance ==> sudo ssh -i ~/id_rsa_aws ${user}@${pub_ip}" 
+echo "Your website is ready at this IP :) : http://${pub_ip} "
