@@ -64,3 +64,34 @@ else echo ./aws/create_subnet.sh $3 $6;
 exit 1
  fi 
 done 
+
+#################
+# ROUTE 
+#################
+echo -e ...Route Table check
+echo
+while true; do
+rt_id=$(aws ec2 describe-route-tables  --filters "Name=tag:Name,Values=rt_$sub_name" "Name=route.gateway-id,Values=$igw_id" "Name=vpc-id,Values=$vpc_id" --query 'RouteTables[].RouteTableId' --output text)
+if [ -n "$rt_id" ];
+then echo -e The vpc has a route table with a route across an internet gateway. checking the association with $sub_name subnet. 
+  echo -e ...
+  asos_id=$(aws ec2 describe-route-tables --route-table-ids $rt_id --query "RouteTables[].Associations[?SubnetId =='$sub_id'].RouteTableAssociationId[]" --output text)
+    if [ -n "$asos_id" ];
+    then echo
+    echo "2. Route is associated with $sub_name subnet. Checking the Security Group"
+    echo  ...
+    break
+    else 
+    echo " ... Creating missing Association between'$sub_name' Subnet and the Route Table."
+    aws ec2 associate-route-table --subnet-id $sub_id --route-table-id $rt_id 
+    echo "2. Route is now associated with $sub_name subnet. Checking the Security Group"
+    echo  ...
+    fi
+  break
+else echo "The entered VPC name has no Route table with a path to Internet via an Internet gateway."
+    echo "creating the missing route table" 
+rt_id=$(aws ec2 create-route-table   --vpc-id $vpc_id --tag-specifications "ResourceType=route-table,Tags=[{Key=Name,Value=rt_$sub_name}]" --query 'RouteTable.{RouteTableId:RouteTableId}' --output text )
+echo " Create route to Internet Gateway for Route Table ID '$rt_id'." 
+aws ec2 create-route --route-table-id $rt_id --destination-cidr-block 0.0.0.0/0 --gateway-id $igw_id  --region $AWS_REGION
+fi
+done 
