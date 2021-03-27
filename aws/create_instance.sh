@@ -95,3 +95,39 @@ echo " Create route to Internet Gateway for Route Table ID '$rt_id'."
 aws ec2 create-route --route-table-id $rt_id --destination-cidr-block 0.0.0.0/0 --gateway-id $igw_id  --region $AWS_REGION
 fi
 done 
+
+#################
+# Security Group
+#################
+
+  echo " ... Checking the availability of a security Group with SSH/HTTP ingress rule ."
+  sg_id=$(aws ec2 describe-security-groups --filter "Name=group-name,Values=sg_${vpc_name}" "Name=vpc-id,Values=$vpc_id"  --query 'SecurityGroups[].GroupId' --o text)
+  while true; do
+   if [ -n "$sg_id" ];
+    then  ingress_exists=$(aws ec2 describe-security-groups --group-ids $sg_id --filter "Name=ip-permission.from-port,Values=22" "Name=group-name,Values=sg_${vpc_name}" "Name=vpc-id,Values=$vpc_id"  --query 'length(SecurityGroups[?IpPermissions[?ToPort==`80` && contains(IpRanges[].CidrIp, `0.0.0.0/0`)]])' --o text)
+      if [ "$ingress_exists" = "0" ];
+      then echo "Creating missing security Group Rules."
+         sg_22=$(aws ec2 describe-security-groups --filter "Name=ip-permission.from-port,Values=22" "Name=vpc-id,Values=$vpc_id" "Name=ip-permission.cidr,Values='0.0.0.0/0'" --query SecurityGroups[].GroupId --output text)
+         sg_443=$(aws ec2 describe-security-groups --filter "Name=ip-permission.from-port,Values=80" "Name=vpc-id,Values=$vpc_id" "Name=ip-permission.cidr,Values='0.0.0.0/0'" --query SecurityGroups[].GroupId --output text)
+         sg_80=$(aws ec2 describe-security-groups --filter "Name=ip-permission.from-port,Values=443" "Name=vpc-id,Values=$vpc_id" "Name=ip-permission.cidr,Values='0.0.0.0/0'" --query SecurityGroups[].GroupId --output text)
+           if [ -z "$sg_22" ];
+           then echo "opening Port 22"
+           aws ec2 authorize-security-group-ingress --group-id $sg_id --ip-permissions IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges='[{CidrIp=0.0.0.0/0,Description="Inbound SSH access"}]'
+           fi
+           if [ -z "$sg_80" ];
+           then echo "opening Port 80"
+           aws ec2 authorize-security-group-ingress --group-id $sg_id --ip-permissions IpProtocol=tcp,FromPort=80,ToPort=80,IpRanges='[{CidrIp=0.0.0.0/0,Description="Inbound HTTP access "}]'
+           fi
+           if [ -z "$sg_443" ];
+           then echo "opening Port 443"
+           aws ec2 authorize-security-group-ingress --group-id $sg_id --ip-permissions IpProtocol=tcp,FromPort=433,ToPort=433,IpRanges='[{CidrIp=0.0.0.0/0,Description="Inbound HTTPS access "}]'
+           fi
+      else  echo  "3. dedicated security Group ingress rules exists  PORT (22,80)."
+      fi
+      break
+    else echo "creating the missing dedicated security Group for the vpc"
+    sg_id=$(aws ec2 create-security-group --group-name sg_$vpc_name --description "SSH ,HTTP, and HTTPS" --vpc-id $vpc_id --query GroupId --output text)
+    fi
+ done     
+echo  "Creating the instance with the below SG ."  
+aws ec2 describe-security-groups --filter "Name=vpc-id,Values=$vpc_id" "Name=group-name,Values=sg_${vpc_name}"  --query 'SecurityGroups[].{SG_id:GroupId,Name:GroupName,Vpc_id:VpcId,"Rules": IpPermissions[].{SourceCIDR:IpRanges[].CidrIp|[0],Description:IpRanges[].Description|[0],fromport:FromPort,ToPort:ToPort,Protocol:IpProtocol}}'  
