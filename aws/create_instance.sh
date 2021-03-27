@@ -4,10 +4,10 @@ echo -e "Note: t2.Micro"
 inst_type=$(aws ec2 describe-instance-types --filters "Name=free-tier-eligible,Values=true" "Name=current-generation,Values=true" --query 'InstanceTypes[].InstanceType' --output text)
 
 
-read -p " $1 " public_key
+public_key= $1
 public_key=${public_key:-~/id_rsa_aws.pub}
 key=$(echo ${public_key} | awk -F'/' '{print $NF}')
-read -p " $2 " instance_name
+instance_name= $2
 instance_name=${instance_name:-"Demo"}
 aws ec2 describe-instance-types --filters "Name=free-tier-eligible,Values=true" "Name=current-generation,Values=true" --query 'InstanceTypes[].{Instance:InstanceType,Memory:MemoryInfo.SizeInMiB,Ghz:ProcessorInfo.SustainedClockSpeedInGhz, VirType:SupportedVirtualizationTypes|[0]}'
 
@@ -17,7 +17,7 @@ aws ec2 describe-instance-types --filters "Name=free-tier-eligible,Values=true" 
 echo
 while true; do
  aws ec2 describe-vpcs  --query   'Vpcs[].{VPCID:VpcId,association:CidrBlockAssociationSet[].CidrBlockState.State| [0],CIDR:CidrBlock,Name:Tags[?Key==`Name`].Value| [0]}'
- read -p "select the VPC Name for your new instance [$vpc_name]: " vpc_name
+ vpc_name=$3
  vpc_name=${vpc_name:-$vpc_name}
  vpc_id=$(aws ec2 describe-vpcs --filters Name=tag:Name,Values=$vpc_name  --query   'Vpcs[].VpcId' --output text)
 if [ -n "$vpc_id" ];
@@ -37,6 +37,30 @@ if [ -n "$vpc_id" ];
      fi
      done 
      break
-else ./aws/create_vpc.sh $3; 
+else ./aws/create_vpc.sh $4; 
  fi
  done
+
+#################
+# SUBNET 
+#################
+while true; do
+sub_id=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$vpc_id" --query 'Subnets[].SubnetId' --output text)
+if [ -n "$sub_id" ];
+    then  
+     aws ec2 describe-subnets --filters "Name=vpc-id,Values=$vpc_id" --query 'Subnets[].{VPC_id:VpcId,SUB_id:SubnetId,AZ:AvailabilityZone,CIDR:CidrBlock,AutoIP:MapPublicIpOnLaunch,IP_COUNT:AvailableIpAddressCount,Name:Tags[?Key==`Name`].Value| [0]}' 
+     sub_name= $5
+     sub_name=${sub_name:-$sub_name}
+     sub_id=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$vpc_id" "Name=tag:Name,Values=$sub_name"  --query   'Subnets[].SubnetId' --output text)
+     echo selected subnet name : $sub_name
+     if  [ -n "$sub_id" ];
+     then echo
+     echo " Internet gateway and subnet exist => checking the Route table"
+     echo ...
+     break
+     else  ./aws/create_subnet.sh;
+     fi 
+else echo ./aws/create_subnet.sh; 
+exit 1
+ fi 
+done 
