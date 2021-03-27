@@ -58,9 +58,9 @@ if [ -n "$sub_id" ];
      echo " Internet gateway and subnet exist => checking the Route table"
      echo ...
      break
-     else  ./aws/create_subnet.sh;
+     else  ./aws/create_subnet.sh $3 $6;
      fi 
-else echo ./aws/create_subnet.sh; 
+else echo ./aws/create_subnet.sh $3 $6; 
 exit 1
  fi 
 done 
