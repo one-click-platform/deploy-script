@@ -37,6 +37,6 @@ if [ -n "$vpc_id" ];
      fi
      done 
      break
-else ./aws/create_vpc.sh; 
+else ./aws/create_vpc.sh $3; 
  fi
  done
