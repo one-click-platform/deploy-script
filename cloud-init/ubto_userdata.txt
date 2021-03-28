@@ -9,7 +9,7 @@ export address=$(grep 'Public address of the key:'  addres.txt  | rev | cut -d'x
 echo "0x"$address > adr.txt
 mkdir genesis
 export number=$RANDOM
-usermod -aG docker ubuntu)
+usermod -aG docker ubuntu
 cat <<EOT >> genesis.exp
 #!/usr/bin/expect -f
 #
