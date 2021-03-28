@@ -6,7 +6,7 @@ echo "qwerty" >> password.txt
 mkdir validator_v
 docker run -v /validator_v:/root/.ethereum -v /password.txt:/root/.ethereum/password.txt ethereum/client-go:v1.10.1 account new --password=/root/.ethereum/password.txt > addres.txt
 export address=$(grep 'Public address of the key:'  addres.txt  | rev | cut -d'x'  -f 1,3 | rev)
-echo "0x"$access > adr.txt
+echo "0x"$address > adr.txt
 mkdir genesis
 export number=$RANDOM
 cat <<EOT >> genesis.exp
