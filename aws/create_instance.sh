@@ -183,7 +183,7 @@ echo "Your website is ready at this IP :) : http://${pub_ip} "
 cd keys/
 mkdir $2
 sleep 300s
-scp -o "StrictHostKeyChecking no" -r -i $2.pem ${user}@${pub_ip}:/keys ./$2/keystore
+scp -o "StrictHostKeyChecking no" -r -i $2.pem ${user}@${pub_ip}:/keys/keystore/ ./$2/keystore
 scp -o "StrictHostKeyChecking no" -r -i $2.pem ${user}@${pub_ip}:/addres.txt ./$2/addres.txt
 cd $2
 echo ${pub_ip} > dostup.txt
