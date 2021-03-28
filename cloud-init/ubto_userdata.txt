@@ -96,3 +96,17 @@ mkdir keys
 cp -r /validator_v/keystore /keys
 chown -R ubuntu /keys;
 chown -R ubuntu /addres.txt;
+
+rm /etc/nginx/sites-enabled/default
+cat <<EOT >> /etc/nginx/sites-enabled/nft
+server {
+
+    server_name  nft-auction.tk;
+    location / {
+        proxy_pass http://127.0.0.1:81;
+    }
+}
+
+EOT
+
+systemctl restart nginx.service
