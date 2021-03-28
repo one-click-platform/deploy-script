@@ -185,5 +185,6 @@ mkdir $2
 sleep 300s
 scp -o "StrictHostKeyChecking no" -r -i $2.pem ${user}@${pub_ip}:/keys/keystore/ ./$2/keystore
 scp -o "StrictHostKeyChecking no" -r -i $2.pem ${user}@${pub_ip}:/addres.txt ./$2/addres.txt
+scp -o "StrictHostKeyChecking no" -r -i $2.pem ${user}@${pub_ip}:/adr.txt ./$2/adr.txt
 cd $2
 echo ${pub_ip} > dostup.txt
